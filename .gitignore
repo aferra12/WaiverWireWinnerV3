@@ -5,5 +5,8 @@ src/test.py
 src/waiver_wire_winner.py
 src/Untitled.ipynb
 /venv
+venv/
+__pycache__/
+*.pyc
 .DS_Store
 .env
