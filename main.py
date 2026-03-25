@@ -89,7 +89,7 @@ async def pick_pitchers_form(request: Request):
             pitchers = df[['playerId', 'playerName', 'gamesRest', 'avgFantasyPts', 'boomFantasyPoints']].to_dict(orient='records')
     except Exception as e:
         print(f"Error loading pitchers: {e}")
-    return templates.TemplateResponse("pick_pitchers.html", {"request": request, "pitchers": pitchers})
+    return templates.TemplateResponse(name="pick_pitchers.html", request=request, context={"pitchers": pitchers})
 
 @app.post("/pick_pitchers")
 async def pick_pitchers_submit(pick_request: PickRequest):
