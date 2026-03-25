@@ -60,6 +60,13 @@
         }
         .player-card .remove-btn:hover { color: #ff6659; }
         .empty-state { text-align: center; padding: 40px 20px; color: #9aa8b6; }
+        .output-sections { max-width: 600px; margin: 24px auto 0; display: none; }
+        .output-section { background: #1a2633; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .output-section h3 { font-size: 1rem; margin-bottom: 10px; color: #fff; }
+        .output-section pre { background: #0f1923; border: 1px solid #2a3a4a; border-radius: 6px; padding: 12px; color: #e0e0e0; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 10px; }
+        .copy-btn { padding: 6px 16px; border: none; border-radius: 6px; font-size: 0.85rem; background: #2196f3; color: #fff; cursor: pointer; font-weight: 600; }
+        .copy-btn:hover { background: #1e88e5; }
+        .copy-btn.copied { background: #4caf50; }
     </style>
 </head>
 <body>
@@ -89,19 +96,19 @@
             </div>
         </div>
         <div class="column tier-1">
-            <h2>Tier 1</h2>
+            <h2>Flaming Hot Wings</h2>
             <div id="tier-1" class="player-list"></div>
         </div>
         <div class="column tier-2">
-            <h2>Tier 2</h2>
+            <h2>Spicy Wings</h2>
             <div id="tier-2" class="player-list"></div>
         </div>
         <div class="column tier-3">
-            <h2>Tier 3</h2>
+            <h2>Mild Wings</h2>
             <div id="tier-3" class="player-list"></div>
         </div>
         <div class="column tier-4">
-            <h2>Tier 4</h2>
+            <h2>Dry Rub Wings</h2>
             <div id="tier-4" class="player-list"></div>
         </div>
     </div>
@@ -110,6 +117,19 @@
         <input type="password" id="token" placeholder="Enter token">
         <button id="submit-btn" onclick="submitPicks()">Submit Picks</button>
         <div id="msg"></div>
+    </div>
+
+    <div class="output-sections" id="output-sections">
+        <div class="output-section">
+            <h3>Twitter</h3>
+            <pre id="twitter-output"></pre>
+            <button class="copy-btn" onclick="copyText('twitter-output', this)">Copy</button>
+        </div>
+        <div class="output-section">
+            <h3>Patreon</h3>
+            <pre id="patreon-output"></pre>
+            <button class="copy-btn" onclick="copyText('patreon-output', this)">Copy</button>
+        </div>
     </div>
 
     <script>
@@ -143,10 +163,49 @@
             if (e.key === 'Enter') addCustomPlayer();
         });
 
+        const tierNames = {1: 'Flaming Hot Wings', 2: 'Spicy Wings', 3: 'Mild Wings', 4: 'Dry Rub Wings'};
+
+        function buildFormattedOutputs(players) {
+            const byTier = {1: [], 2: [], 3: [], 4: []};
+            players.forEach(p => { if (byTier[p.tier]) byTier[p.tier].push(p.playerName); });
+
+            const now = new Date();
+            const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
+
+            let twitter = `Fantasy Baseball Free Agent Adds ${dateStr}:\n\n`;
+            const twitterLines = [];
+            for (let t = 1; t <= 4; t++) {
+                if (byTier[t].length > 0) {
+                    twitterLines.push(`${tierNames[t]} -> ${byTier[t][0]}`);
+                }
+            }
+            twitter += twitterLines.join('\n') + '\n\n#winthewire #fantasy #reliever #bulk';
+
+            const patreonParts = [];
+            for (let t = 1; t <= 4; t++) {
+                if (byTier[t].length > 0) {
+                    patreonParts.push(tierNames[t] + '\n\n' + byTier[t].join('\n\n'));
+                }
+            }
+            const patreon = patreonParts.join('\n\n');
+
+            return { twitter, patreon };
+        }
+
+        function copyText(preId, btn) {
+            const text = document.getElementById(preId).textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+            });
+        }
+
         async function submitPicks() {
             const msgEl = document.getElementById('msg');
             msgEl.textContent = '';
             msgEl.className = 'message';
+            document.getElementById('output-sections').style.display = 'none';
 
             const picks = [];
             for (let tier = 1; tier <= 4; tier++) {
@@ -190,6 +249,10 @@
                 } else {
                     msgEl.textContent = `Submitted ${data.selected_players.length} pitcher(s) successfully.`;
                     msgEl.className = 'message success';
+                    const { twitter, patreon } = buildFormattedOutputs(data.selected_players);
+                    document.getElementById('twitter-output').textContent = twitter;
+                    document.getElementById('patreon-output').textContent = patreon;
+                    document.getElementById('output-sections').style.display = 'block';
                 }
             } catch (err) {
                 msgEl.textContent = 'Network error: ' + err.message;
