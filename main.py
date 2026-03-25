@@ -1,5 +1,8 @@
 import os
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 import uvicorn
 import datetime
 # Import your helper modules as needed
@@ -14,6 +17,7 @@ from helpers.getLikelyPitchers import get_likely_pitchers
 from helpers.postPicks import post_picks
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 async def run_script():
@@ -67,6 +71,39 @@ async def run_backfill(start_date: str, end_date: str, background_tasks: Backgro
         print(f"Script failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Script failed: {str(e)}")
     
+class PlayerPick(BaseModel):
+    playerName: str
+    tier: int
+    rank: int
+
+class PickRequest(BaseModel):
+    token: str
+    picks: list[PlayerPick]
+
+@app.get("/pick_pitchers", response_class=HTMLResponse)
+async def pick_pitchers_form(request: Request):
+    pitchers = []
+    try:
+        df = get_likely_pitchers()
+        if df is not None and not df.empty:
+            pitchers = df[['playerId', 'playerName', 'gamesRest', 'avgFantasyPts', 'boomFantasyPoints']].to_dict(orient='records')
+    except Exception as e:
+        print(f"Error loading pitchers: {e}")
+    return templates.TemplateResponse("pick_pitchers.html", {"request": request, "pitchers": pitchers})
+
+@app.post("/pick_pitchers")
+async def pick_pitchers_submit(pick_request: PickRequest):
+    form_token = os.environ.get("FORM_TOKEN")
+    if not form_token or pick_request.token != form_token:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    if not pick_request.picks:
+        raise HTTPException(status_code=400, detail="No players selected")
+    selected = sorted(
+        [p.model_dump() for p in pick_request.picks],
+        key=lambda x: (x["tier"], x["rank"])
+    )
+    return {"selected_players": selected}
+
 @app.get("/callback_stub")
 async def callback_stub():
     pass

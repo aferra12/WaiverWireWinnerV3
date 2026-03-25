@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waiver Wire Winner - Pick Pitchers</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1923; color: #e0e0e0; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 24px; color: #fff; font-size: 1.6rem; }
+        .columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+        @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
+        .column { background: #1a2633; border-radius: 8px; padding: 12px; min-height: 200px; }
+        .column h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2a3a4a; }
+        .column.unassigned h2 { border-bottom-color: #555; }
+        .column.tier-1 h2 { border-bottom-color: #4caf50; color: #4caf50; }
+        .column.tier-2 h2 { border-bottom-color: #2196f3; color: #2196f3; }
+        .column.tier-3 h2 { border-bottom-color: #ff9800; color: #ff9800; }
+        .column.tier-4 h2 { border-bottom-color: #f44336; color: #f44336; }
+        .player-list { min-height: 60px; }
+        .player-card {
+            background: #253545; border: 1px solid #2a3a4a; border-radius: 6px;
+            padding: 10px 12px; margin-bottom: 8px; cursor: grab;
+            transition: box-shadow 0.15s, transform 0.15s;
+        }
+        .player-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.3); transform: translateY(-1px); }
+        .player-card:active { cursor: grabbing; }
+        .player-card strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+        .player-card .stats { font-size: 0.8rem; color: #9aa8b6; }
+        .sortable-ghost { opacity: 0.4; }
+        .sortable-chosen { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        .bottom-bar { max-width: 500px; margin: 0 auto; text-align: center; }
+        .bottom-bar input[type="password"] {
+            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #2a3a4a;
+            background: #1a2633; color: #e0e0e0; font-size: 0.95rem; margin-bottom: 12px;
+        }
+        .bottom-bar button {
+            padding: 10px 32px; border: none; border-radius: 6px; font-size: 1rem;
+            background: #4caf50; color: #fff; cursor: pointer; font-weight: 600;
+        }
+        .bottom-bar button:hover { background: #43a047; }
+        .bottom-bar button:disabled { background: #555; cursor: not-allowed; }
+        .message { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 0.9rem; }
+        .message.error { background: #3e1a1a; color: #f44336; }
+        .message.success { background: #1a3e1a; color: #4caf50; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #9aa8b6; }
+    </style>
+</head>
+<body>
+    <h1>Waiver Wire Winner - Pick Pitchers</h1>
+
+    {% if pitchers %}
+    <div class="columns">
+        <div class="column unassigned">
+            <h2>Unassigned</h2>
+            <div id="unassigned" class="player-list">
+                {% for p in pitchers %}
+                <div class="player-card" data-player-id="{{ p.playerId }}" data-player-name="{{ p.playerName }}">
+                    <strong>{{ p.playerName }}</strong>
+                    <span class="stats">Avg: {{ "%.1f"|format(p.avgFantasyPts) }} | Boom: {{ "%.1f"|format(p.boomFantasyPoints) }} | Rest: {{ p.gamesRest }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="column tier-1">
+            <h2>Tier 1</h2>
+            <div id="tier-1" class="player-list"></div>
+        </div>
+        <div class="column tier-2">
+            <h2>Tier 2</h2>
+            <div id="tier-2" class="player-list"></div>
+        </div>
+        <div class="column tier-3">
+            <h2>Tier 3</h2>
+            <div id="tier-3" class="player-list"></div>
+        </div>
+        <div class="column tier-4">
+            <h2>Tier 4</h2>
+            <div id="tier-4" class="player-list"></div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <input type="password" id="token" placeholder="Enter token">
+        <button id="submit-btn" onclick="submitPicks()">Submit Picks</button>
+        <div id="msg"></div>
+    </div>
+
+    <script>
+        const listIds = ['unassigned', 'tier-1', 'tier-2', 'tier-3', 'tier-4'];
+        listIds.forEach(id => {
+            new Sortable(document.getElementById(id), {
+                group: 'shared',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen'
+            });
+        });
+
+        async function submitPicks() {
+            const msgEl = document.getElementById('msg');
+            msgEl.textContent = '';
+            msgEl.className = 'message';
+
+            const picks = [];
+            for (let tier = 1; tier <= 4; tier++) {
+                const cards = document.querySelectorAll(`#tier-${tier} .player-card`);
+                cards.forEach((card, idx) => {
+                    picks.push({
+                        playerName: card.dataset.playerName,
+                        tier: tier,
+                        rank: idx + 1
+                    });
+                });
+            }
+
+            if (picks.length === 0) {
+                msgEl.textContent = 'Drag at least one pitcher into a tier before submitting.';
+                msgEl.className = 'message error';
+                return;
+            }
+
+            const token = document.getElementById('token').value;
+            if (!token) {
+                msgEl.textContent = 'Please enter the token.';
+                msgEl.className = 'message error';
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            try {
+                const resp = await fetch('/pick_pitchers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, picks })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    msgEl.textContent = data.detail || 'Submission failed.';
+                    msgEl.className = 'message error';
+                } else {
+                    msgEl.textContent = `Submitted ${data.selected_players.length} pitcher(s) successfully.`;
+                    msgEl.className = 'message success';
+                }
+            } catch (err) {
+                msgEl.textContent = 'Network error: ' + err.message;
+                msgEl.className = 'message error';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Submit Picks';
+            }
+        }
+    </script>
+    {% else %}
+    <div class="empty-state">
+        <p>No likely pitchers found for today. Check back when games are scheduled.</p>
+    </div>
+    {% endif %}
+</body>
+</html>

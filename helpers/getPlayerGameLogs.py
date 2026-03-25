@@ -19,7 +19,7 @@ def get_player_game_logs(game_pks: list) -> pd.DataFrame:
     try:
         game_details = get_game_details(game_pks)
     except requests.exceptions.RequestException as e:
-        print(f"Error retrieving data for game {game_pk}: {e}")
+        print(f"Error retrieving data for game {game_pks}: {e}")
 
     # Track player game logs
     player_data = []

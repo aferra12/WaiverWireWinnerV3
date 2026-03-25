@@ -23,7 +23,7 @@ def get_likely_pitchers():
         credentials=credentials
     )
 
-    # sql_pitchers = pd.read_csv('helpers/bquxjob_53eae280_1986dc3ffb3.csv')
+    # sql_pitchers = pd.read_csv('helpers/bquxjob_1957a707_198990f76a6.csv')
 
     # Filter likely pitchers by who is available in ESPN
 
@@ -44,7 +44,7 @@ def get_likely_pitchers():
 
     cookies = {
         "swid": "{DEF635BE-7DB6-462F-86E1-B1945753DC0A}",
-        "espn_s2": "AEC4nosSrWs828f6v9iRm13t2qunlcMxFh2HIveh9X4LzvWhWuJsC%2BNifv%2B8k05D2DHEIot6r6R3HZLfWyUbrjqcK9573ZhxM0PntvBa7WtFo9Qq08lL%2B2h4q5AiVqkNt1md7VrE413KHKYmTK6PthUQ8D7cDTVN7qUJ7Sx0MhRCqDQA2u3%2BKMjDwD6GnMN36YIpTQECCFW2yICjcm78YVAd9sJj5s42SgPN7DWraJ6ezfj93840H%2FcnZO%2FDEUBGovg7twE%2FxDm2iFMgf23gwn%2FqRlYOjeTixdcoKo5H00MWQA%3D%3D"
+        "espn_s2": "AECxz1dvmhOuhXEzrfhG0A%2Bi3QEQhzRV3Ag04dTIXhxaY%2BZRdpwby6%2FfzWCy1RiNmyL5YygHOkQby9uAhvzJEmTdCSDgCHM%2FMXQJIhJZj6%2FmrYFtXR%2BzETzGdrbcaNdxFqQUAmxJYukjs8pQh7M48285dcNeLDOsE0AbmxDp3C2Ygwia6mt%2F%2Bn%2FeyEHfOTr%2FT9vC6GYC5XRY%2B83PMr8ommx9tHgO808KGYULKTIsq%2FIecwki8vrB7xZUqjk7KQi%2F60073kYgM5rYGqsjVnCObnefMwJvVPhgT%2Fkxgm2gp1K%2FVg%3D%3D"
     }
     
     try:
