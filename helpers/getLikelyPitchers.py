@@ -27,13 +27,17 @@ def get_likely_pitchers():
 
     # Filter likely pitchers by who is available in ESPN
 
-    espn_base_url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/2025/players" # segments/0/leagues/760081598"
+    # espn_base_url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/2025/players" # segments/0/leagues/760081598"
+
+    current_year = datetime.now().year
+    espn_base_url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/flb/seasons/{current_year}/players" # segments/0/leagues/760081598"
+
 
     espn_params = {
         #"view": ["freeAgents"]
         "scoringPeriodId": 0,
         "view": ["players_wl"],
-        "seasonId": 2025
+        "seasonId": current_year
     }
 
     headers = {'X-Fantasy-Filter': '{"filterActive":{"value":true}}'}
