@@ -101,7 +101,7 @@ def _get_active_roster_and_todays_teams():
         roster_data = player_response.json()
         for player in roster_data.get("roster", []):
             person = player.get("person", {})
-            active_players.append({"id": person.get("id"), "team_id": team_id})
+            active_players.append({"id": person.get("id"), "fullName": person.get("fullName"), "team_id": team_id})
 
     active_players_df = pd.DataFrame(active_players)
 
@@ -238,7 +238,11 @@ def get_likely_pitchers():
         if playing_today.empty:
             return pd.DataFrame()
 
-        active_likely_pitchers = likely_pitchers_df.merge(active_players_df, left_on='playerId', right_on='id')
+        # BQ path has MLB player IDs; ESPN fallback has ESPN IDs — merge on name for fallback
+        if 'playerId' in likely_pitchers_df.columns and likely_pitchers_df['playerId'].iloc[0] in active_players_df['id'].values:
+            active_likely_pitchers = likely_pitchers_df.merge(active_players_df, left_on='playerId', right_on='id')
+        else:
+            active_likely_pitchers = likely_pitchers_df.merge(active_players_df, left_on='playerName', right_on='fullName')
         final_pitcher_picks = active_likely_pitchers.merge(playing_today, left_on='team_id', right_on='team_id')
 
         return final_pitcher_picks
