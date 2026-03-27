@@ -86,7 +86,11 @@ async def pick_pitchers_form(request: Request):
     try:
         df = get_likely_pitchers()
         if df is not None and not df.empty:
-            pitchers = df[['playerId', 'playerName', 'gamesRest', 'avgFantasyPts', 'boomFantasyPoints']].to_dict(orient='records')
+            columns = ['playerId', 'playerName', 'gamesRest', 'avgFantasyPts', 'boomFantasyPoints']
+            for col in ['opponent', 'teamStarter']:
+                if col in df.columns:
+                    columns.append(col)
+            pitchers = df[columns].to_dict(orient='records')
     except Exception as e:
         print(f"Error loading pitchers: {e}")
     return templates.TemplateResponse(name="pick_pitchers.html", request=request, context={"pitchers": pitchers})

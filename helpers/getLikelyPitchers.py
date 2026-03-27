@@ -107,7 +107,8 @@ def _get_active_roster_and_todays_teams():
 
     schedule_response = requests.get("https://statsapi.mlb.com/api/v1/schedule", params={
         "sportId": 1,
-        "date": datetime.now().strftime("%Y-%m-%d")
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "hydrate": "probablePitcher"
     })
     schedule_data = schedule_response.json()
     dates = schedule_data.get("dates", [])
@@ -118,10 +119,25 @@ def _get_active_roster_and_todays_teams():
 
     teams_playing = []
     for game in dates[0].get("games", []):
-        away_team = game.get("teams", {}).get("away", {}).get("team", {})
-        home_team = game.get("teams", {}).get("home", {}).get("team", {})
-        teams_playing.append({"team_id": away_team.get("id")})
-        teams_playing.append({"team_id": home_team.get("id")})
+        away = game.get("teams", {}).get("away", {})
+        home = game.get("teams", {}).get("home", {})
+        away_id = away.get("team", {}).get("id")
+        home_id = home.get("team", {}).get("id")
+        away_name = away.get("team", {}).get("name", "")
+        home_name = home.get("team", {}).get("name", "")
+        away_starter = away.get("probablePitcher", {}).get("fullName", "TBD")
+        home_starter = home.get("probablePitcher", {}).get("fullName", "TBD")
+
+        teams_playing.append({
+            "team_id": away_id,
+            "opponent": home_name,
+            "teamStarter": away_starter,
+        })
+        teams_playing.append({
+            "team_id": home_id,
+            "opponent": away_name,
+            "teamStarter": home_starter,
+        })
 
     return active_players_df, pd.DataFrame(teams_playing)
 
@@ -245,7 +261,7 @@ def get_likely_pitchers():
             active_likely_pitchers = likely_pitchers_df.merge(active_players_df, left_on='playerName', right_on='fullName')
         final_pitcher_picks = active_likely_pitchers.merge(playing_today, left_on='team_id', right_on='team_id')
 
-        return final_pitcher_picks
+        return final_pitcher_picks.nlargest(20, 'avgFantasyPts')
 
     except Exception as e:
         print(f"Error in get_likely_pitchers: {e}")

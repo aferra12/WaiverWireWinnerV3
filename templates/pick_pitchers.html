@@ -90,7 +90,7 @@
                 {% for p in pitchers %}
                 <div class="player-card" data-player-id="{{ p.playerId }}" data-player-name="{{ p.playerName }}">
                     <strong>{{ p.playerName }}</strong>
-                    <span class="stats">Avg: {{ "%.1f"|format(p.avgFantasyPts) }} | Boom: {{ "%.1f"|format(p.boomFantasyPoints) }} | Rest: {{ p.gamesRest }}</span>
+                    <span class="stats">Avg: {{ "%.1f"|format(p.avgFantasyPts) }} | Boom: {{ "%.1f"|format(p.boomFantasyPoints) }} | Rest: {{ p.gamesRest }}{% if p.opponent is defined %} | vs {{ p.opponent }}{% endif %}{% if p.teamStarter is defined %} | SP: {{ p.teamStarter }}{% endif %}</span>
                 </div>
                 {% endfor %}
             </div>
