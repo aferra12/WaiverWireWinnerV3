@@ -111,7 +111,7 @@ def get_player_game_logs(game_pks: list) -> pd.DataFrame:
                                 player_record['earnedRuns'] * -3 +
                                 player_record['wins'] * 6 +
                                 player_record['losses'] * -3 +
-                                player_record['saves'] * 14 +
+                                player_record['saves'] * 17 +
                                 player_record['blownSaves'] * -4 +
                                 player_record['strikeOuts'] * 5 +
                                 player_record['hits'] * -1 +
@@ -120,8 +120,8 @@ def get_player_game_logs(game_pks: list) -> pd.DataFrame:
                                 player_record['wildPitches'] * -1 +
                                 player_record['balks'] * -7 +
                                 player_record['pickoffs'] * 7 +
-                                player_record['qualityStart'] * 8 +
-                                player_record['holds'] * 7
+                                player_record['qualityStart'] * 9 +
+                                player_record['holds'] * 8
                             )
 
                             player_record['espnPts'] = (

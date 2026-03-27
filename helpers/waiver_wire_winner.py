@@ -103,10 +103,10 @@ def calculate_player_scoring(client, games_to_run):
     
     pitching_point_system = {
         'outs': 1,
-        'earnedRuns': -2,
-        'wins': 5,
+        'earnedRuns': -3,
+        'wins': 6,
         'losses': -3,
-        'saves': 12,
+        'saves': 17,
         'blownSaves': -4,
         'strikeOuts': 5,
         'hits': -1,
@@ -117,7 +117,7 @@ def calculate_player_scoring(client, games_to_run):
         'balks': -7,
         'pickoffs': 7,
         'completeGames': 50,
-        'holds': 7
+        'holds': 8
     }
 
     batting_point_system = {
@@ -127,7 +127,7 @@ def calculate_player_scoring(client, games_to_run):
         'baseOnBalls': 1,
         'runs': 2,
         'rbi': 4,
-        'stolenBases': 9,
+        'stolenBases': 10,
         'strikeOuts': -1,
         'intentionalWalks': 7,
         'hitByPitch': 1,
