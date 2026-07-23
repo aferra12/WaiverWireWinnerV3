@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Ready to Post — Waiver Wire Winner</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1923; color: #e0e0e0; font-size: 16px;
+            padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+        }
+        h1 { font-size: 1.3rem; color: #fff; margin-bottom: 4px; }
+        .hint { font-size: .85rem; color: #7a8794; margin-bottom: 18px; }
+        .post-block {
+            background: #1a2633; border: 1px solid #253545;
+            border-radius: 10px; padding: 14px; margin-bottom: 14px;
+        }
+        .post-block h2 {
+            font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+            color: #7a8794; margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%; min-height: 150px; background: #0f1923; color: #e0e0e0;
+            border: 1px solid #253545; border-radius: 8px; padding: 10px;
+            font-family: inherit; font-size: .9rem; resize: vertical; line-height: 1.5;
+        }
+        .actions { display: flex; gap: 8px; margin-top: 10px; }
+        .actions button, .actions a {
+            flex: 1; text-align: center; text-decoration: none;
+            padding: 13px; border-radius: 8px; font-size: .9rem; font-weight: 600;
+        }
+        .copy { background: #2196f3; color: #fff; border: none; cursor: pointer; }
+        .copy.done { background: #4caf50; color: #0f1923; }
+        .open { background: transparent; color: #e0e0e0; border: 1px solid #2a3a4a; }
+    </style>
+</head>
+<body>
+    <h1>Ready to post</h1>
+    <p class="hint">Copy each one, then open the composer.</p>
+
+    <div class="post-block">
+        <h2>X / Twitter</h2>
+        <textarea id="xText" readonly>{{ drafts.x }}</textarea>
+        <div class="actions">
+            <button class="copy" data-target="xText">Copy</button>
+            <a class="open" href="{{ drafts.xComposeUrl }}" target="_blank" rel="noopener">Open X</a>
+        </div>
+    </div>
+
+    <div class="post-block">
+        <h2>Patreon</h2>
+        <textarea id="patreonText" readonly style="min-height:230px;">{{ drafts.patreon }}</textarea>
+        <div class="actions">
+            <button class="copy" data-target="patreonText">Copy</button>
+            <a class="open" href="{{ drafts.patreonComposeUrl }}" target="_blank" rel="noopener">Open Patreon</a>
+        </div>
+    </div>
+
+<script>
+    document.querySelectorAll('.copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const field = document.getElementById(btn.dataset.target);
+            try {
+                await navigator.clipboard.writeText(field.value);
+            } catch (err) {
+                // Fallback where the async clipboard API is blocked (non-HTTPS, older iOS).
+                field.removeAttribute('readonly');
+                field.select();
+                document.execCommand('copy');
+                field.setAttribute('readonly', '');
+            }
+            btn.textContent = 'Copied';
+            btn.classList.add('done');
+            setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600);
+        });
+    });
+</script>
+</body>
+</html>

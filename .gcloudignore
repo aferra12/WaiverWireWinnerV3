@@ -1,8 +1,21 @@
+# NOTE: when this file exists, gcloud ignores .gitignore entirely. Anything that must not
+# be uploaded has to be listed here too -- .env above all, which .gitignore covers for git
+# but which a local `gcloud run deploy --source .` would otherwise ship straight into a
+# build artifact.
+.env
+.env.*
+!.env.example
+
 .git
 .gitignore
 venv/
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.DS_Store
 .github/
 gha-creds-*.json
+
+# Not needed at runtime.
+tests/

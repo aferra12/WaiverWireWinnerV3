@@ -1,12 +1,10 @@
 /documentation
-src/.env
-src/game.py
-src/test.py
-src/waiver_wire_winner.py
-src/Untitled.ipynb
 /venv
 venv/
+.venv/
 __pycache__/
+tests/__pycache__/
+.pytest_cache/
 *.pyc
 .DS_Store
 .env

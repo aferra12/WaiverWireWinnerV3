@@ -1,14 +1,13 @@
-certifi==2025.1.31
-charset-normalizer==3.4.1
-idna==3.10
+fastapi[standard]==0.115.*
+uvicorn[standard]==0.34.*
+jinja2==3.1.*
+
 numpy==2.2.4
 pandas==2.2.3
-python-dateutil==2.9.0.post0
-pytz==2025.2
 requests==2.32.3
-six==1.17.0
-tzdata==2025.2
-urllib3==2.3.0
-fastapi[standard]
-uvicorn[standard]
-pandas-gbq
+python-dotenv==1.1.*
+
+# TLS fingerprint impersonation. FanGraphs sits behind Cloudflare, which rejects plain
+# `requests` with a 403 challenge no matter what headers are sent -- the handshake itself
+# is what gets fingerprinted. curl_cffi replays a real Chrome fingerprint.
+curl_cffi==0.15.0
