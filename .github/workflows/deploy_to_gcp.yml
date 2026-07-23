@@ -20,6 +20,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # google-github-actions/auth reports a missing credentials_json as "must specify
+    # exactly one of workload_identity_provider or credentials_json", which reads like a
+    # workflow syntax error rather than an unset secret. Name the actual problem instead.
+    - name: Check required secrets are set
+      run: |
+        missing=""
+        for name in GCP_SA_KEY FORM_TOKEN EMAIL_SENDER EMAIL_PASSWORD; do
+          case "$name" in
+            GCP_SA_KEY)     value="${{ secrets.GCP_SA_KEY }}" ;;
+            FORM_TOKEN)     value="${{ secrets.FORM_TOKEN }}" ;;
+            EMAIL_SENDER)   value="${{ secrets.EMAIL_SENDER }}" ;;
+            EMAIL_PASSWORD) value="${{ secrets.EMAIL_PASSWORD }}" ;;
+          esac
+          [ -n "$value" ] || missing="$missing $name"
+        done
+        if [ -n "$missing" ]; then
+          echo "Missing repository secrets:$missing"
+          echo "Add them under Settings > Secrets and variables > Actions."
+          exit 1
+        fi
+        echo "All required secrets present."
+
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -39,6 +61,7 @@ jobs:
       run: |
         gcloud run deploy "$SERVICE_NAME" \
           --source . \
+          --project "$PROJECT_ID" \
           --region "$REGION" \
           --platform managed \
           --allow-unauthenticated \
@@ -49,11 +72,11 @@ jobs:
     - name: Point BASE_URL at the deployed service
       run: |
         URL=$(gcloud run services describe "$SERVICE_NAME" \
-              --region "$REGION" --format='value(status.url)')
+              --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')
         echo "Service URL: $URL"
         echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
         gcloud run services update "$SERVICE_NAME" \
-          --region "$REGION" --update-env-vars "BASE_URL=$URL"
+          --project "$PROJECT_ID" --region "$REGION" --update-env-vars "BASE_URL=$URL"
 
     - name: Smoke test
       run: |
