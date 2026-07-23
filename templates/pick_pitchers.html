@@ -2,266 +2,317 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waiver Wire Winner - Pick Pitchers</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Choose Picks — Waiver Wire Winner</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1923; color: #e0e0e0; padding: 20px; }
-        h1 { text-align: center; margin-bottom: 24px; color: #fff; font-size: 1.6rem; }
-        .columns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
-        @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
-        .column { background: #1a2633; border-radius: 8px; padding: 12px; min-height: 200px; }
-        .column h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #2a3a4a; }
-        .column.unassigned h2 { border-bottom-color: #555; }
-        .column.tier-1 h2 { border-bottom-color: #4caf50; color: #4caf50; }
-        .column.tier-2 h2 { border-bottom-color: #2196f3; color: #2196f3; }
-        .column.tier-3 h2 { border-bottom-color: #ff9800; color: #ff9800; }
-        .column.tier-4 h2 { border-bottom-color: #f44336; color: #f44336; }
-        .player-list { min-height: 60px; }
-        .player-card {
-            background: #253545; border: 1px solid #2a3a4a; border-radius: 6px;
-            padding: 10px 12px; margin-bottom: 8px; cursor: grab;
-            transition: box-shadow 0.15s, transform 0.15s;
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1923; color: #e0e0e0; font-size: 16px;
+            padding: 16px 16px calc(104px + env(safe-area-inset-bottom));
         }
-        .player-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.3); transform: translateY(-1px); }
-        .player-card:active { cursor: grabbing; }
-        .player-card strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
-        .player-card .stats { font-size: 0.8rem; color: #9aa8b6; }
-        .sortable-ghost { opacity: 0.4; }
-        .sortable-chosen { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-        .bottom-bar { max-width: 500px; margin: 0 auto; text-align: center; }
-        .bottom-bar input[type="password"] {
-            width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #2a3a4a;
-            background: #1a2633; color: #e0e0e0; font-size: 0.95rem; margin-bottom: 12px;
+        header { margin-bottom: 14px; }
+        h1 { font-size: 1.3rem; color: #fff; margin-bottom: 4px; }
+        .hint { font-size: .85rem; color: #7a8794; line-height: 1.4; }
+
+        .tier-key { display: flex; gap: 6px; margin: 12px 0 16px; flex-wrap: wrap; }
+        .tier-chip {
+            font-size: .7rem; padding: 4px 9px; border-radius: 20px;
+            border: 1px solid #2a3a4a; color: #7a8794; white-space: nowrap;
         }
-        .bottom-bar button {
-            padding: 10px 32px; border: none; border-radius: 6px; font-size: 1rem;
-            background: #4caf50; color: #fff; cursor: pointer; font-weight: 600;
+        .tier-chip.t1 { border-color: #f44336; color: #ff8a80; }
+        .tier-chip.t2 { border-color: #ff9800; color: #ffcc80; }
+        .tier-chip.t3 { border-color: #2196f3; color: #90caf9; }
+        .tier-chip.t4 { border-color: #4caf50; color: #a5d6a7; }
+
+        .player {
+            display: flex; align-items: center; gap: 12px;
+            background: #1a2633; border: 1px solid #253545; border-radius: 10px;
+            padding: 13px 14px; margin-bottom: 8px; cursor: pointer;
+            transition: border-color .12s, background .12s;
         }
-        .bottom-bar button:hover { background: #43a047; }
-        .bottom-bar button:disabled { background: #555; cursor: not-allowed; }
-        .message { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 0.9rem; }
-        .message.error { background: #3e1a1a; color: #f44336; }
-        .message.success { background: #1a3e1a; color: #4caf50; }
-        .add-player-bar { max-width: 500px; margin: 0 auto 20px; display: flex; gap: 8px; }
-        .add-player-bar input[type="text"] {
-            flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #2a3a4a;
-            background: #1a2633; color: #e0e0e0; font-size: 0.95rem;
+        .player:active { background: #22303f; }
+        .player.picked { background: #172029; }
+        .player.t1 { border-color: #f44336; }
+        .player.t2 { border-color: #ff9800; }
+        .player.t3 { border-color: #2196f3; }
+        .player.t4 { border-color: #4caf50; }
+
+        .rank {
+            flex: 0 0 34px; height: 34px; border-radius: 17px;
+            display: flex; align-items: center; justify-content: center;
+            background: #253545; color: #5b6976; font-weight: 700; font-size: .95rem;
         }
-        .add-player-bar button {
-            padding: 10px 20px; border: none; border-radius: 6px; font-size: 0.9rem;
-            background: #2196f3; color: #fff; cursor: pointer; font-weight: 600; white-space: nowrap;
+        .t1 .rank { background: #f44336; color: #fff; }
+        .t2 .rank { background: #ff9800; color: #0f1923; }
+        .t3 .rank { background: #2196f3; color: #fff; }
+        .t4 .rank { background: #4caf50; color: #0f1923; }
+
+        .info { flex: 1; min-width: 0; }
+        .name { font-weight: 600; font-size: 1rem; }
+        .meta { font-size: .77rem; color: #7a8794; margin-top: 3px; }
+        .flag { font-size: .73rem; color: #d9a04a; margin-top: 3px; }
+        .tier-tag { font-size: .73rem; margin-top: 4px; display: none; }
+        .picked .tier-tag { display: block; }
+        .tier-tag .on-x {
+            display: inline-block; margin-left: 6px; padding: 1px 6px;
+            border-radius: 10px; background: #253545; color: #9aa8b6; font-size: .68rem;
         }
-        .add-player-bar button:hover { background: #1e88e5; }
-        .player-card .remove-btn {
-            float: right; background: none; border: none; color: #f44336; cursor: pointer;
-            font-size: 1.1rem; line-height: 1; padding: 0 0 0 8px;
+        .nums { flex: 0 0 auto; text-align: right; }
+        .proj { font-weight: 700; font-size: 1rem; }
+        .boom { font-size: .73rem; color: #7a8794; margin-top: 2px; }
+
+        .bar {
+            position: fixed; left: 0; right: 0; bottom: 0;
+            background: #16212c; border-top: 1px solid #253545;
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            display: flex; gap: 10px; align-items: center;
         }
-        .player-card .remove-btn:hover { color: #ff6659; }
-        .empty-state { text-align: center; padding: 40px 20px; color: #9aa8b6; }
-        .output-sections { max-width: 600px; margin: 24px auto 0; display: none; }
-        .output-section { background: #1a2633; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-        .output-section h3 { font-size: 1rem; margin-bottom: 10px; color: #fff; }
-        .output-section pre { background: #0f1923; border: 1px solid #2a3a4a; border-radius: 6px; padding: 12px; color: #e0e0e0; font-size: 0.85rem; white-space: pre-wrap; word-wrap: break-word; margin-bottom: 10px; }
-        .copy-btn { padding: 6px 16px; border: none; border-radius: 6px; font-size: 0.85rem; background: #2196f3; color: #fff; cursor: pointer; font-weight: 600; }
-        .copy-btn:hover { background: #1e88e5; }
-        .copy-btn.copied { background: #4caf50; }
+        .count { font-size: .8rem; color: #7a8794; flex: 1; line-height: 1.3; }
+        button {
+            padding: 14px 22px; border: none; border-radius: 10px;
+            font-size: 1rem; font-weight: 600; background: #4caf50; color: #0f1923;
+            cursor: pointer;
+        }
+        button:disabled { background: #2a3a4a; color: #5b6976; }
+        .msg { padding: 12px; border-radius: 8px; font-size: .9rem; margin-bottom: 12px; }
+        .msg.error { background: #3e1a1a; color: #ff8a80; }
+        .empty { text-align: center; padding: 40px 20px; color: #7a8794; }
+
+        .output { display: none; }
+        .output.visible { display: block; }
+        .post-block {
+            background: #1a2633; border: 1px solid #253545;
+            border-radius: 10px; padding: 14px; margin-bottom: 14px;
+        }
+        .post-block h2 {
+            font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+            color: #7a8794; margin-bottom: 10px;
+        }
+        textarea {
+            width: 100%; min-height: 150px; background: #0f1923; color: #e0e0e0;
+            border: 1px solid #253545; border-radius: 8px; padding: 10px;
+            font-family: inherit; font-size: .9rem; resize: vertical; line-height: 1.5;
+        }
+        .actions { display: flex; gap: 8px; margin-top: 10px; }
+        .actions button, .actions a {
+            flex: 1; text-align: center; text-decoration: none;
+            padding: 13px; border-radius: 8px; font-size: .9rem; font-weight: 600;
+        }
+        .copy { background: #2196f3; color: #fff; border: none; }
+        .copy.done { background: #4caf50; color: #0f1923; }
+        .open { background: transparent; color: #e0e0e0; border: 1px solid #2a3a4a; }
     </style>
 </head>
 <body>
-    <h1>Waiver Wire Winner - Pick Pitchers</h1>
 
-    <div class="add-player-bar">
-        <input type="text" id="custom-player-name" placeholder="Add a custom player...">
-        <button onclick="addCustomPlayer()">Add Player</button>
+<div id="picker">
+    <header>
+        <h1>Choose your picks</h1>
+        <p class="hint">Tap <strong>two pitchers per tier</strong>, strongest first — 8 taps in all.
+        Tap again to remove.<br>
+        X names the first of each pair; Patreon lists both.<br>
+        Ranked by projected <strong>ESPN standard</strong> points per appearance. Expected
+        points (projected × chance of pitching) sits under each name.</p>
+    </header>
+
+    <div class="tier-key">
+        <span class="tier-chip t1">Flaming Hot ×2</span>
+        <span class="tier-chip t2">Spicy ×2</span>
+        <span class="tier-chip t3">Mild ×2</span>
+        <span class="tier-chip t4">Dry Rub ×2</span>
     </div>
+
+    <div id="error" class="msg error" style="display:none;"></div>
 
     {% if not pitchers %}
-    <div class="empty-state">
-        <p>No likely pitchers found from the algorithm. You can still add custom players above.</p>
-    </div>
+    <div class="empty">No likely pitchers found for today.</div>
     {% endif %}
 
-    <div class="columns">
-        <div class="column unassigned">
-            <h2>Unassigned</h2>
-            <div id="unassigned" class="player-list">
-                {% for p in pitchers %}
-                <div class="player-card" data-player-id="{{ p.playerId }}" data-player-name="{{ p.playerName }}">
-                    <strong>{{ p.playerName }}</strong>
-                    <span class="stats">Avg: {{ "%.1f"|format(p.avgFantasyPts) }} | Boom: {{ "%.1f"|format(p.boomFantasyPoints) }} | Rest: {{ p.gamesRest }}{% if p.opponent is defined %} | vs {{ p.opponent }}{% endif %}{% if p.teamStarter is defined %} | SP: {{ p.teamStarter }}{% endif %}</span>
+    <div id="list">
+        {% for p in pitchers %}
+        <div class="player" data-index="{{ loop.index0 }}">
+            <div class="rank">·</div>
+            <div class="info">
+                <div class="name">{{ p.playerName }}</div>
+                <div class="meta">
+                    {{ p.teamAbbrev }} · {{ p.role }}{% if p.gamesRest is not none %} · {{ p.gamesRest }} rest{% endif %}{% if p.percentOwned is not none %} · {{ p.percentOwned }}% own{% endif %}
                 </div>
-                {% endfor %}
+                <div class="meta">
+                    {{ p.espnScore }} expected · {{ p.pitchChance }}% likely to pitch
+                </div>
+                {% if p.flag %}<div class="flag">{{ p.flag }}</div>{% endif %}
+                <div class="tier-tag"></div>
+            </div>
+            <div class="nums">
+                <div class="proj">{{ p.espnAdj }}</div>
+                <div class="boom">proj pts</div>
             </div>
         </div>
-        <div class="column tier-1">
-            <h2>Flaming Hot Wings</h2>
-            <div id="tier-1" class="player-list"></div>
-        </div>
-        <div class="column tier-2">
-            <h2>Spicy Wings</h2>
-            <div id="tier-2" class="player-list"></div>
-        </div>
-        <div class="column tier-3">
-            <h2>Mild Wings</h2>
-            <div id="tier-3" class="player-list"></div>
-        </div>
-        <div class="column tier-4">
-            <h2>Dry Rub Wings</h2>
-            <div id="tier-4" class="player-list"></div>
+        {% endfor %}
+    </div>
+
+    <div class="bar">
+        <span class="count" id="count">None selected</span>
+        <button id="submit" disabled>Generate</button>
+    </div>
+</div>
+
+<div id="output" class="output">
+    <header>
+        <h1>Ready to post</h1>
+        <p class="hint">Copy each one, then open the composer.</p>
+    </header>
+
+    <div class="post-block">
+        <h2>X / Twitter</h2>
+        <textarea id="xText" readonly></textarea>
+        <div class="actions">
+            <button class="copy" data-target="xText">Copy</button>
+            <a class="open" id="xLink" target="_blank" rel="noopener">Open X</a>
         </div>
     </div>
 
-    <div class="bottom-bar">
-        <input type="password" id="token" placeholder="Enter token">
-        <button id="submit-btn" onclick="submitPicks()">Submit Picks</button>
-        <div id="msg"></div>
-    </div>
-
-    <div class="output-sections" id="output-sections">
-        <div class="output-section">
-            <h3>Twitter</h3>
-            <pre id="twitter-output"></pre>
-            <button class="copy-btn" onclick="copyText('twitter-output', this)">Copy</button>
-        </div>
-        <div class="output-section">
-            <h3>Patreon</h3>
-            <pre id="patreon-output"></pre>
-            <button class="copy-btn" onclick="copyText('patreon-output', this)">Copy</button>
+    <div class="post-block">
+        <h2>Patreon</h2>
+        <textarea id="patreonText" readonly style="min-height:230px;"></textarea>
+        <div class="actions">
+            <button class="copy" data-target="patreonText">Copy</button>
+            <a class="open" id="patreonLink" target="_blank" rel="noopener">Open Patreon</a>
         </div>
     </div>
+</div>
 
-    <script>
-        const listIds = ['unassigned', 'tier-1', 'tier-2', 'tier-3', 'tier-4'];
-        listIds.forEach(id => {
-            new Sortable(document.getElementById(id), {
-                group: 'shared',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen'
-            });
+<script>
+    const PITCHERS = {{ pitchers_json | safe }};
+    const TIER_NAMES = ['Flaming Hot Wings', 'Spicy Wings', 'Mild Wings', 'Dry Rub Wings'];
+    const PICKS_PER_TIER = 2;
+    const TOKEN = new URLSearchParams(location.search).get('token') || '';
+
+    // Taps fill each tier in pairs: 1st+2nd -> Flaming Hot, 3rd+4th -> Spicy, and so on.
+    // X names only the first of each pair; Patreon lists both. Taps past the last tier
+    // stack onto it rather than being dropped.
+    // Mirrors postDrafts.tier_for -- the two must stay in step.
+    const selected = [];
+    const list = document.getElementById('list');
+    const countEl = document.getElementById('count');
+    const submitBtn = document.getElementById('submit');
+
+    function tierFor(position) {
+        return Math.min(Math.floor(position / PICKS_PER_TIER) + 1, TIER_NAMES.length);
+    }
+
+    // The first pick in a tier is the one X will name.
+    function isTierLead(position) {
+        return position % PICKS_PER_TIER === 0 && tierFor(position) < TIER_NAMES.length
+            || position === (TIER_NAMES.length - 1) * PICKS_PER_TIER;
+    }
+
+    function render() {
+        list.querySelectorAll('.player').forEach(el => {
+            const idx = Number(el.dataset.index);
+            const pos = selected.indexOf(idx);
+            const rank = el.querySelector('.rank');
+            const tag = el.querySelector('.tier-tag');
+            el.classList.remove('picked', 't1', 't2', 't3', 't4');
+            if (pos === -1) {
+                rank.textContent = '·';
+                tag.innerHTML = '';
+            } else {
+                const tier = tierFor(pos);
+                el.classList.add('picked', 't' + tier);
+                // The badge shows the tier, not the tap index -- two picks share a tier.
+                rank.textContent = tier;
+                const lead = pos % PICKS_PER_TIER === 0;
+                tag.innerHTML = TIER_NAMES[tier - 1]
+                    + (lead ? '<span class="on-x">named on X</span>' : '');
+            }
         });
 
-        function addCustomPlayer() {
-            const input = document.getElementById('custom-player-name');
-            const name = input.value.trim();
-            if (!name) return;
-
-            const card = document.createElement('div');
-            card.className = 'player-card';
-            card.dataset.playerId = 'custom-' + Date.now();
-            card.dataset.playerName = name;
-            card.innerHTML = `<button class="remove-btn" onclick="this.parentElement.remove()">&times;</button><strong>${name}</strong><span class="stats">Custom player</span>`;
-
-            document.getElementById('unassigned').appendChild(card);
-            input.value = '';
-            input.focus();
+        if (!selected.length) {
+            countEl.textContent = `None selected · next is ${TIER_NAMES[0]} (1 of ${PICKS_PER_TIER})`;
+        } else {
+            const nextTier = tierFor(selected.length);
+            const slot = (selected.length % PICKS_PER_TIER) + 1;
+            countEl.textContent =
+                `${selected.length} selected · next is ${TIER_NAMES[nextTier - 1]} `
+                + `(${slot} of ${PICKS_PER_TIER})`;
         }
+        submitBtn.disabled = selected.length === 0;
+    }
 
-        document.getElementById('custom-player-name').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') addCustomPlayer();
-        });
+    list.addEventListener('click', e => {
+        const card = e.target.closest('.player');
+        if (!card) return;
+        const idx = Number(card.dataset.index);
+        const pos = selected.indexOf(idx);
+        if (pos === -1) selected.push(idx); else selected.splice(pos, 1);
+        render();
+    });
 
-        const tierNames = {1: 'Flaming Hot Wings', 2: 'Spicy Wings', 3: 'Mild Wings', 4: 'Dry Rub Wings'};
+    submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Working...';
+        const errorBox = document.getElementById('error');
+        errorBox.style.display = 'none';
 
-        function buildFormattedOutputs(players) {
-            const byTier = {1: [], 2: [], 3: [], 4: []};
-            players.forEach(p => { if (byTier[p.tier]) byTier[p.tier].push(p.playerName); });
-
-            const now = new Date();
-            const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
-
-            let twitter = `Fantasy Baseball Free Agent Adds ${dateStr}:\n\n`;
-            const twitterLines = [];
-            for (let t = 1; t <= 4; t++) {
-                if (byTier[t].length > 0) {
-                    twitterLines.push(`${tierNames[t]} -> ${byTier[t][0]}`);
-                }
-            }
-            twitter += twitterLines.join('\n') + '\n\n#winthewire #fantasy #reliever #bulk';
-
-            const patreonParts = [];
-            for (let t = 1; t <= 4; t++) {
-                if (byTier[t].length > 0) {
-                    patreonParts.push('>' + tierNames[t] + '\n\n' + byTier[t].join('\n\n'));
-                }
-            }
-            const patreon = patreonParts.join('\n\n');
-
-            return { twitter, patreon };
-        }
-
-        function copyText(preId, btn) {
-            const text = document.getElementById(preId).textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                btn.textContent = 'Copied!';
-                btn.classList.add('copied');
-                setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+        try {
+            const response = await fetch('/pick_pitchers', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    token: TOKEN,
+                    picks: selected.map((idx, position) => ({
+                        playerName: PITCHERS[idx].playerName,
+                        tier: tierFor(position),
+                        rank: position + 1
+                    }))
+                })
             });
+
+            if (!response.ok) {
+                const detail = await response.json().catch(() => ({}));
+                throw new Error(detail.detail || `Request failed (${response.status})`);
+            }
+
+            const data = await response.json();
+            document.getElementById('xText').value = data.x;
+            document.getElementById('patreonText').value = data.patreon;
+            document.getElementById('xLink').href = data.xComposeUrl;
+            document.getElementById('patreonLink').href = data.patreonComposeUrl;
+            document.getElementById('picker').style.display = 'none';
+            document.getElementById('output').classList.add('visible');
+            window.scrollTo(0, 0);
+        } catch (err) {
+            errorBox.textContent = err.message;
+            errorBox.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Generate';
         }
+    });
 
-        async function submitPicks() {
-            const msgEl = document.getElementById('msg');
-            msgEl.textContent = '';
-            msgEl.className = 'message';
-            document.getElementById('output-sections').style.display = 'none';
-
-            const picks = [];
-            for (let tier = 1; tier <= 4; tier++) {
-                const cards = document.querySelectorAll(`#tier-${tier} .player-card`);
-                cards.forEach((card, idx) => {
-                    picks.push({
-                        playerName: card.dataset.playerName,
-                        tier: tier,
-                        rank: idx + 1
-                    });
-                });
-            }
-
-            if (picks.length === 0) {
-                msgEl.textContent = 'Drag at least one pitcher into a tier before submitting.';
-                msgEl.className = 'message error';
-                return;
-            }
-
-            const token = document.getElementById('token').value;
-            if (!token) {
-                msgEl.textContent = 'Please enter the token.';
-                msgEl.className = 'message error';
-                return;
-            }
-
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = true;
-            btn.textContent = 'Submitting...';
-
+    document.querySelectorAll('.copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const field = document.getElementById(btn.dataset.target);
             try {
-                const resp = await fetch('/pick_pitchers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token, picks })
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    msgEl.textContent = data.detail || 'Submission failed.';
-                    msgEl.className = 'message error';
-                } else {
-                    msgEl.textContent = `Submitted ${data.selected_players.length} pitcher(s) successfully.`;
-                    msgEl.className = 'message success';
-                    const { twitter, patreon } = buildFormattedOutputs(data.selected_players);
-                    document.getElementById('twitter-output').textContent = twitter;
-                    document.getElementById('patreon-output').textContent = patreon;
-                    document.getElementById('output-sections').style.display = 'block';
-                }
+                await navigator.clipboard.writeText(field.value);
             } catch (err) {
-                msgEl.textContent = 'Network error: ' + err.message;
-                msgEl.className = 'message error';
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Submit Picks';
+                // Fallback where the async clipboard API is blocked (non-HTTPS, older iOS).
+                field.removeAttribute('readonly');
+                field.select();
+                document.execCommand('copy');
+                field.setAttribute('readonly', '');
             }
-        }
-    </script>
+            btn.textContent = 'Copied';
+            btn.classList.add('done');
+            setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('done');
+            }, 1600);
+        });
+    });
+
+    render();
+</script>
 </body>
 </html>
