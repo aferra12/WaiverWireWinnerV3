@@ -23,17 +23,22 @@ jobs:
     # google-github-actions/auth reports a missing credentials_json as "must specify
     # exactly one of workload_identity_provider or credentials_json", which reads like a
     # workflow syntax error rather than an unset secret. Name the actual problem instead.
+    # Secrets are passed through `env:` and read as shell variables. They must never be
+    # interpolated into a `run:` body: GitHub substitutes the raw text before the shell
+    # parses it, so a value containing quotes -- a service-account JSON, for one -- ends
+    # the string early and the remainder is executed as commands.
     - name: Check required secrets are set
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        FORM_TOKEN: ${{ secrets.FORM_TOKEN }}
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       run: |
         missing=""
         for name in GCP_SA_KEY FORM_TOKEN EMAIL_SENDER EMAIL_PASSWORD; do
-          case "$name" in
-            GCP_SA_KEY)     value="${{ secrets.GCP_SA_KEY }}" ;;
-            FORM_TOKEN)     value="${{ secrets.FORM_TOKEN }}" ;;
-            EMAIL_SENDER)   value="${{ secrets.EMAIL_SENDER }}" ;;
-            EMAIL_PASSWORD) value="${{ secrets.EMAIL_PASSWORD }}" ;;
-          esac
-          [ -n "$value" ] || missing="$missing $name"
+          # Indirect expansion: reads the variable named by $name without ever placing
+          # its value in the script text.
+          [ -n "${!name}" ] || missing="$missing $name"
         done
         if [ -n "$missing" ]; then
           echo "Missing repository secrets:$missing"
@@ -58,6 +63,15 @@ jobs:
     # BASE_URL is deliberately absent here; the next step sets it from the service's own
     # URL, which is not knowable until the service exists.
     - name: Deploy to Cloud Run
+      env:
+        FORM_TOKEN: ${{ secrets.FORM_TOKEN }}
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+        ESPN_LEAGUE_ID: ${{ secrets.ESPN_LEAGUE_ID }}
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        OWNERSHIP_THRESHOLD: ${{ vars.OWNERSHIP_THRESHOLD || '7.5' }}
       run: |
         gcloud run deploy "$SERVICE_NAME" \
           --source . \
@@ -67,7 +81,7 @@ jobs:
           --allow-unauthenticated \
           --memory 512Mi \
           --timeout 300 \
-          --set-env-vars "^@^FORM_TOKEN=${{ secrets.FORM_TOKEN }}@EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}@EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}@EMAIL_RECIPIENT=${{ secrets.EMAIL_RECIPIENT }}@ESPN_LEAGUE_ID=${{ secrets.ESPN_LEAGUE_ID }}@ESPN_S2=${{ secrets.ESPN_S2 }}@ESPN_SWID=${{ secrets.ESPN_SWID }}@OWNERSHIP_THRESHOLD=${{ vars.OWNERSHIP_THRESHOLD || '7.5' }}"
+          --set-env-vars "^@^FORM_TOKEN=${FORM_TOKEN}@EMAIL_SENDER=${EMAIL_SENDER}@EMAIL_PASSWORD=${EMAIL_PASSWORD}@EMAIL_RECIPIENT=${EMAIL_RECIPIENT}@ESPN_LEAGUE_ID=${ESPN_LEAGUE_ID}@ESPN_S2=${ESPN_S2}@ESPN_SWID=${ESPN_SWID}@OWNERSHIP_THRESHOLD=${OWNERSHIP_THRESHOLD}"
 
     - name: Point BASE_URL at the deployed service
       run: |
@@ -79,6 +93,8 @@ jobs:
           --project "$PROJECT_ID" --region "$REGION" --update-env-vars "BASE_URL=$URL"
 
     - name: Smoke test
+      env:
+        FORM_TOKEN: ${{ secrets.FORM_TOKEN }}
       run: |
         echo "--- health ---"
         curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "$SERVICE_URL/health"
@@ -107,7 +123,7 @@ jobs:
         # records the full query string in its request logs.
         echo "--- full pipeline, no email ---"
         if ! body=$(curl -fsS --max-time 300 \
-             -H "X-Form-Token: ${{ secrets.FORM_TOKEN }}" \
+             -H "X-Form-Token: ${FORM_TOKEN}" \
              "$SERVICE_URL/daily_picks?send=false"); then
           echo "Pipeline failed. If the service logs show a 403 from fangraphs.com,"
           echo "Cloudflare rejected this datacenter IP -- see the escalation ladder"
