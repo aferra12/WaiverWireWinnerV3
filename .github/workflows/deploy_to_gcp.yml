@@ -55,13 +55,19 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
-    # `--set-env-vars` replaces the service's whole env block rather than merging, which
-    # also clears the retired BigQuery variables (PROJECT_ID, BIG_QUERY_TABLE). The `^@^`
-    # prefix switches the delimiter from comma to @, so a value containing a comma cannot
-    # split itself into two variables.
+    # Environment goes in via `--env-vars-file` rather than `--set-env-vars`. The inline
+    # form needs a delimiter that appears in no value, and there isn't a safe one here:
+    # comma is the default, `@` collides with the email addresses, and any other choice is
+    # a guess about future values. A file has no delimiter at all.
     #
-    # BASE_URL is deliberately absent here; the next step sets it from the service's own
-    # URL, which is not knowable until the service exists.
+    # The file is written with json.dumps, which is valid YAML and quotes every value
+    # correctly, so `@`, spaces, `%` escapes and `{}` all survive untouched.
+    #
+    # Like `--set-env-vars`, this replaces the whole env block rather than merging, which
+    # also clears the retired BigQuery variables (PROJECT_ID, BIG_QUERY_TABLE).
+    #
+    # BASE_URL is deliberately absent; the next step sets it from the service's own URL,
+    # which is not knowable until the service exists.
     - name: Deploy to Cloud Run
       env:
         FORM_TOKEN: ${{ secrets.FORM_TOKEN }}
@@ -73,6 +79,27 @@ jobs:
         ESPN_SWID: ${{ secrets.ESPN_SWID }}
         OWNERSHIP_THRESHOLD: ${{ vars.OWNERSHIP_THRESHOLD || '7.5' }}
       run: |
+        ENV_FILE="$RUNNER_TEMP/env-vars.yaml"
+        python3 - "$ENV_FILE" <<'PY'
+        import json, os, sys
+
+        keys = [
+            "FORM_TOKEN", "EMAIL_SENDER", "EMAIL_PASSWORD", "EMAIL_RECIPIENT",
+            "ESPN_LEAGUE_ID", "ESPN_S2", "ESPN_SWID", "OWNERSHIP_THRESHOLD",
+        ]
+        # Cloud Run rejects a null value, so an unset optional secret is omitted rather
+        # than written as empty -- the app already falls back for those.
+        env = {k: os.environ[k] for k in keys if os.environ.get(k)}
+
+        with open(sys.argv[1], "w") as handle:
+            json.dump(env, handle, indent=2)
+
+        print("Setting:", ", ".join(sorted(env)))
+        missing = [k for k in keys if k not in env]
+        if missing:
+            print("Omitted (unset):", ", ".join(missing))
+        PY
+
         gcloud run deploy "$SERVICE_NAME" \
           --source . \
           --project "$PROJECT_ID" \
@@ -81,7 +108,9 @@ jobs:
           --allow-unauthenticated \
           --memory 512Mi \
           --timeout 300 \
-          --set-env-vars "^@^FORM_TOKEN=${FORM_TOKEN}@EMAIL_SENDER=${EMAIL_SENDER}@EMAIL_PASSWORD=${EMAIL_PASSWORD}@EMAIL_RECIPIENT=${EMAIL_RECIPIENT}@ESPN_LEAGUE_ID=${ESPN_LEAGUE_ID}@ESPN_S2=${ESPN_S2}@ESPN_SWID=${ESPN_SWID}@OWNERSHIP_THRESHOLD=${OWNERSHIP_THRESHOLD}"
+          --env-vars-file "$ENV_FILE"
+
+        rm -f "$ENV_FILE"
 
     - name: Point BASE_URL at the deployed service
       run: |
