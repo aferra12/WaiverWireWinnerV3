@@ -7,6 +7,8 @@ on:
 
 env:
   PROJECT_ID: sanguine-robot-454100-s3
+  # Renaming this would create a second service and orphan the Cloud Scheduler job
+  # pointing at the old one, so the stale name is kept deliberately.
   SERVICE_NAME: run-nightly-mlb-games
   REGION: us-central1
 
@@ -26,10 +28,58 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
+    # `--set-env-vars` replaces the service's whole env block rather than merging, which
+    # also clears the retired BigQuery variables (PROJECT_ID, BIG_QUERY_TABLE). The `^@^`
+    # prefix switches the delimiter from comma to @, so a value containing a comma cannot
+    # split itself into two variables.
+    #
+    # BASE_URL is deliberately absent here; the next step sets it from the service's own
+    # URL, which is not knowable until the service exists.
     - name: Deploy to Cloud Run
       run: |
-        gcloud run deploy ${{ env.SERVICE_NAME }} \
+        gcloud run deploy "$SERVICE_NAME" \
           --source . \
-          --region ${{ env.REGION }} \
+          --region "$REGION" \
           --platform managed \
-          --allow-unauthenticated
+          --allow-unauthenticated \
+          --memory 1Gi \
+          --timeout 300 \
+          --set-env-vars "^@^FORM_TOKEN=${{ secrets.FORM_TOKEN }}@EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}@EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}@EMAIL_RECIPIENT=${{ secrets.EMAIL_RECIPIENT }}@ESPN_LEAGUE_ID=${{ secrets.ESPN_LEAGUE_ID }}@ESPN_S2=${{ secrets.ESPN_S2 }}@ESPN_SWID=${{ secrets.ESPN_SWID }}@OWNERSHIP_THRESHOLD=${{ vars.OWNERSHIP_THRESHOLD || '7.5' }}"
+
+    - name: Point BASE_URL at the deployed service
+      run: |
+        URL=$(gcloud run services describe "$SERVICE_NAME" \
+              --region "$REGION" --format='value(status.url)')
+        echo "Service URL: $URL"
+        echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
+        gcloud run services update "$SERVICE_NAME" \
+          --region "$REGION" --update-env-vars "BASE_URL=$URL"
+
+    - name: Smoke test
+      run: |
+        echo "--- health ---"
+        curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "$SERVICE_URL/health"
+        echo
+
+        echo "--- rejects a bad token ---"
+        code=$(curl -s -o /dev/null -w '%{http_code}' \
+               "$SERVICE_URL/daily_picks?token=wrong&send=false")
+        if [ "$code" != "403" ]; then
+          echo "expected 403 for a bad token, got $code"; exit 1
+        fi
+        echo "403 as expected"
+
+        # The real check. FanGraphs sits behind Cloudflare and fingerprints the TLS
+        # handshake, so it can accept a residential IP and still refuse a datacenter one.
+        # This is the only place that gets exercised from inside Cloud Run, so a failure
+        # has to break the deploy loudly rather than surface at 6am tomorrow.
+        echo "--- full pipeline, no email ---"
+        if ! body=$(curl -fsS --max-time 300 \
+             "$SERVICE_URL/daily_picks?token=${{ secrets.FORM_TOKEN }}&send=false"); then
+          echo "Pipeline failed. If the service logs show a 403 from fangraphs.com,"
+          echo "Cloudflare rejected this datacenter IP -- see the escalation ladder"
+          echo "in CLAUDE.md."
+          exit 1
+        fi
+        echo "$body"
+        echo "$body" | grep -q '"count"' || { echo "unexpected response shape"; exit 1; }
