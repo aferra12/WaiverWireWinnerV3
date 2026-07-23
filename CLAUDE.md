@@ -136,19 +136,35 @@ FORM_TOKEN=dev BASE_URL=http://localhost:8080 venv/bin/python main.py
 
 ## Endpoints
 
-All are token-protected via `FORM_TOKEN`, because the Cloud Run service is deployed
-`--allow-unauthenticated`.
+The service is deployed `--allow-unauthenticated`, so guarding is graded by what an endpoint
+actually costs if abused rather than applied uniformly.
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /daily_picks?token=…` | Build picks, cache them, send the email. The scheduled morning job. Add `&send=false` to skip the email. |
-| `GET /pick_pitchers?token=…` | Tap-to-rank approval page. |
-| `POST /pick_pitchers` | Returns the generated X and Patreon post text. |
-| `GET /post_now?token=…` | One-tap path: top picks as ranked, straight to post text. |
-| `GET /health` | Liveness check. |
+| Endpoint | Guard | Why |
+| --- | --- | --- |
+| `GET /daily_picks` | `X-Form-Token` header, or `?token=` | Sends mail and makes ~65 outbound API calls. The one that matters. |
+| `GET /pick_pitchers?token=…` | `?token=` | Read-only page, but a cold cache lets it trigger a rebuild. |
+| `GET /post_now?token=…` | `?token=` | Same. |
+| `POST /pick_pitchers` | **none** | Pure formatter: names in, post text out. Reads nothing, no side effects. |
+| `GET /health` | none | Liveness check. |
+
+`POST /pick_pitchers` is deliberately open. A token there would guard nothing while forcing
+the secret into page JavaScript, which is strictly worse. It still accepts a `token` field so
+older clients keep working; the value is ignored.
+
+`/daily_picks` prefers the header because **Cloud Run records the full query string in its
+request logs**, so a URL token ends up in Cloud Logging. Cloud Scheduler sends a custom
+header, keeping the token out of URLs for the only caller that matters:
+
+```bash
+gcloud scheduler jobs update http waiver-wire-daily \
+  --uri "https://<service-url>/daily_picks" \
+  --http-method GET \
+  --update-headers "X-Form-Token=<FORM_TOKEN>"
+```
 
 Picks are cached in process memory keyed by date, since rebuilding costs ~60 game-log calls. A
-cold instance rebuilds transparently (~2s).
+cold instance rebuilds transparently (~2s). `min-instances` is 0, so tapping the email link
+some hours after the morning job will usually hit a cold start.
 
 ## Environment variables
 

@@ -41,6 +41,9 @@ PICK_FIELDS = [
 ]
 
 
+TOKEN_HEADER = "X-Form-Token"
+
+
 def _verify_token(token: str):
     """Constant-time comparison against the configured form token."""
     expected = os.environ.get("FORM_TOKEN")
@@ -48,6 +51,18 @@ def _verify_token(token: str):
         raise HTTPException(status_code=500, detail="FORM_TOKEN is not configured")
     if not token or not hmac.compare_digest(token, expected):
         raise HTTPException(status_code=403, detail="Invalid token")
+
+
+def _verify_trigger(request: Request, token: str = ""):
+    """Authorize the endpoint that sends mail and makes ~65 outbound API calls.
+
+    Accepts the token from the `X-Form-Token` header first, falling back to the query
+    string. Cloud Scheduler can send a custom header, so the scheduled job keeps the token
+    out of URLs entirely -- Cloud Run records the full query string in its request logs,
+    and this is the only endpoint where abuse actually costs something (Gmail's daily send
+    cap, and rate limiting of the Cloud Run egress IP by FanGraphs or ESPN).
+    """
+    _verify_token(request.headers.get(TOKEN_HEADER) or token)
 
 
 def _serialize(picks_df) -> list:
@@ -94,13 +109,14 @@ def _get_picks(rebuild_if_missing: bool = True) -> list:
 
 
 @app.get("/daily_picks")
-async def daily_picks(token: str = "", send: bool = True):
+async def daily_picks(request: Request, token: str = "", send: bool = True):
     """Build today's picks and email them. This is the scheduled morning job.
 
-    Token-protected: the Cloud Run service is deployed --allow-unauthenticated, so without
-    this anyone could trigger the pipeline and send mail.
+    The most strongly guarded endpoint: the service is deployed
+    --allow-unauthenticated, and this is the one that sends mail and does real work.
+    Prefer the `X-Form-Token` header over `?token=`.
     """
-    _verify_token(token)
+    _verify_trigger(request, token)
 
     try:
         frame = build_picks()
@@ -147,15 +163,20 @@ class PlayerPick(BaseModel):
 
 
 class PickRequest(BaseModel):
-    token: str
+    # Accepted so older clients keep working, but deliberately not checked -- see below.
+    token: str = ""
     picks: list[PlayerPick]
 
 
 @app.post("/pick_pitchers")
 async def pick_pitchers_submit(pick_request: PickRequest):
-    """Turn the chosen players into ready-to-paste X and Patreon posts."""
-    _verify_token(pick_request.token)
+    """Turn the chosen players into ready-to-paste X and Patreon posts.
 
+    Intentionally unauthenticated. This handler is a pure formatter: it reads no cache,
+    touches no stored data and has no side effects -- names go in, post text comes out. A
+    token here would guard nothing while forcing the secret into the page's JavaScript,
+    which is a worse trade. The endpoints that do real work are guarded instead.
+    """
     if not pick_request.picks:
         raise HTTPException(status_code=400, detail="No players selected")
 

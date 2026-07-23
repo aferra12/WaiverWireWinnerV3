@@ -42,7 +42,7 @@ jobs:
           --region "$REGION" \
           --platform managed \
           --allow-unauthenticated \
-          --memory 1Gi \
+          --memory 512Mi \
           --timeout 300 \
           --set-env-vars "^@^FORM_TOKEN=${{ secrets.FORM_TOKEN }}@EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}@EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}@EMAIL_RECIPIENT=${{ secrets.EMAIL_RECIPIENT }}@ESPN_LEAGUE_ID=${{ secrets.ESPN_LEAGUE_ID }}@ESPN_S2=${{ secrets.ESPN_S2 }}@ESPN_SWID=${{ secrets.ESPN_SWID }}@OWNERSHIP_THRESHOLD=${{ vars.OWNERSHIP_THRESHOLD || '7.5' }}"
 
@@ -63,9 +63,16 @@ jobs:
 
         echo "--- rejects a bad token ---"
         code=$(curl -s -o /dev/null -w '%{http_code}' \
-               "$SERVICE_URL/daily_picks?token=wrong&send=false")
+               -H "X-Form-Token: wrong" "$SERVICE_URL/daily_picks?send=false")
         if [ "$code" != "403" ]; then
           echo "expected 403 for a bad token, got $code"; exit 1
+        fi
+        echo "403 as expected"
+
+        echo "--- rejects a missing token ---"
+        code=$(curl -s -o /dev/null -w '%{http_code}' "$SERVICE_URL/daily_picks?send=false")
+        if [ "$code" != "403" ]; then
+          echo "expected 403 with no token, got $code"; exit 1
         fi
         echo "403 as expected"
 
@@ -73,9 +80,12 @@ jobs:
         # handshake, so it can accept a residential IP and still refuse a datacenter one.
         # This is the only place that gets exercised from inside Cloud Run, so a failure
         # has to break the deploy loudly rather than surface at 6am tomorrow.
+        # Token goes in a header, matching how Cloud Scheduler calls it -- Cloud Run
+        # records the full query string in its request logs.
         echo "--- full pipeline, no email ---"
         if ! body=$(curl -fsS --max-time 300 \
-             "$SERVICE_URL/daily_picks?token=${{ secrets.FORM_TOKEN }}&send=false"); then
+             -H "X-Form-Token: ${{ secrets.FORM_TOKEN }}" \
+             "$SERVICE_URL/daily_picks?send=false"); then
           echo "Pipeline failed. If the service logs show a 403 from fangraphs.com,"
           echo "Cloudflare rejected this datacenter IP -- see the escalation ladder"
           echo "in CLAUDE.md."

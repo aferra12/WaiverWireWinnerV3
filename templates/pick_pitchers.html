@@ -187,7 +187,6 @@
     const PITCHERS = {{ pitchers_json | safe }};
     const TIER_NAMES = ['Flaming Hot Wings', 'Spicy Wings', 'Mild Wings', 'Dry Rub Wings'];
     const PICKS_PER_TIER = 2;
-    const TOKEN = new URLSearchParams(location.search).get('token') || '';
 
     // Taps fill each tier in pairs: 1st+2nd -> Flaming Hot, 3rd+4th -> Spicy, and so on.
     // X names only the first of each pair; Patreon lists both. Taps past the last tier
@@ -260,8 +259,9 @@
             const response = await fetch('/pick_pitchers', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
+                // No token: the endpoint is a pure formatter, so the secret never has to
+                // be readable from page JavaScript.
                 body: JSON.stringify({
-                    token: TOKEN,
                     picks: selected.map((idx, position) => ({
                         playerName: PITCHERS[idx].playerName,
                         tier: tierFor(position),
